@@ -6,3 +6,11 @@ data/
 
 # IDE
 .idea/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+dist/
