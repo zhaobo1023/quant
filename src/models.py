@@ -177,6 +177,86 @@ TABLES = [
         INDEX idx_status (status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='持仓管理';
     """, "model_trade_position"),
+
+    # 9. 技术指标表
+    ("""
+    CREATE TABLE IF NOT EXISTS trade_technical_indicator (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        stock_code VARCHAR(20) NOT NULL COMMENT '股票代码',
+        trade_date DATE NOT NULL COMMENT '交易日期',
+        ma5 DECIMAL(12,4) COMMENT '5日均线',
+        ma10 DECIMAL(12,4) COMMENT '10日均线',
+        ma20 DECIMAL(12,4) COMMENT '20日均线',
+        ma60 DECIMAL(12,4) COMMENT '60日均线',
+        ma120 DECIMAL(12,4) COMMENT '120日均线',
+        ma250 DECIMAL(12,4) COMMENT '250日均线',
+        macd_dif DECIMAL(12,4) COMMENT 'MACD-DIF',
+        macd_dea DECIMAL(12,4) COMMENT 'MACD-DEA',
+        macd_histogram DECIMAL(12,4) COMMENT 'MACD柱状图',
+        rsi_6 DECIMAL(12,4) COMMENT 'RSI(6)',
+        rsi_12 DECIMAL(12,4) COMMENT 'RSI(12)',
+        rsi_24 DECIMAL(12,4) COMMENT 'RSI(24)',
+        kdj_k DECIMAL(12,4) COMMENT 'KDJ-K值',
+        kdj_d DECIMAL(12,4) COMMENT 'KDJ-D值',
+        kdj_j DECIMAL(12,4) COMMENT 'KDJ-J值',
+        bollinger_upper DECIMAL(12,4) COMMENT '布林带上轨',
+        bollinger_middle DECIMAL(12,4) COMMENT '布林带中轨',
+        bollinger_lower DECIMAL(12,4) COMMENT '布林带下轨',
+        atr DECIMAL(12,4) COMMENT 'ATR波动率',
+        volume_ratio DECIMAL(12,4) COMMENT '量比',
+        turnover_rate DECIMAL(12,4) COMMENT '换手率(%)',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_code_date (stock_code, trade_date),
+        INDEX idx_trade_date (trade_date),
+        INDEX idx_stock_code (stock_code)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='技术指标';
+    """, "trade_technical_indicator"),
+
+    # 10. 分析报告表
+    ("""
+    CREATE TABLE IF NOT EXISTS trade_analysis_report (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        stock_code VARCHAR(20) NOT NULL COMMENT '股票代码',
+        report_date DATE NOT NULL COMMENT '报告日期',
+        report_type VARCHAR(20) DEFAULT 'daily' COMMENT '报告类型',
+        signal_type VARCHAR(20) COMMENT '信号类型',
+        signal_strength DECIMAL(10,4) COMMENT '信号强度',
+        current_price DECIMAL(12,4) COMMENT '当前价格',
+        support_price DECIMAL(12,4) COMMENT '支撑位',
+        resistance_price DECIMAL(12,4) COMMENT '阻力位',
+        trend_direction VARCHAR(20) COMMENT '趋势方向',
+        trend_strength DECIMAL(10,4) COMMENT '趋势强度',
+        risk_level VARCHAR(20) COMMENT '风险等级',
+        recommendation VARCHAR(500) COMMENT '操作建议',
+        analysis_data JSON COMMENT '详细分析数据',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_stock_code (stock_code),
+        INDEX idx_report_date (report_date),
+        INDEX idx_signal_type (signal_type)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='分析报告';
+    """, "trade_analysis_report"),
+
+    # 11. OCR识别记录表
+    ("""
+    CREATE TABLE IF NOT EXISTS trade_ocr_record (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT DEFAULT 1 COMMENT '用户ID',
+        image_path VARCHAR(500) COMMENT '图片路径',
+        ocr_type VARCHAR(20) DEFAULT 'position' COMMENT 'OCR类型',
+        ocr_result TEXT COMMENT 'OCR识别结果',
+        parsed_data JSON COMMENT '解析后的结构化数据',
+        confidence DECIMAL(10,4) COMMENT '识别置信度',
+        status TINYINT DEFAULT 0 COMMENT '状态 0-待处理 1-已处理 2-处理失败',
+        error_message VARCHAR(500) COMMENT '错误信息',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_user_id (user_id),
+        INDEX idx_status (status),
+        INDEX idx_created_at (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='OCR识别记录';
+    """, "trade_ocr_record"),
 ]
 
 

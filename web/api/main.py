@@ -217,7 +217,179 @@ def list_accounts():
     return [r["account_tag"] for r in rows]
 
 
+# ==================== 技术指标 API ====================
+
+class TechnicalIndicatorResponse(BaseModel):
+    """技术指标响应"""
+    id: int
+    stock_code: str
+    trade_date: str
+    ma5: Optional[float]
+    ma10: Optional[float]
+    ma20: Optional[float]
+    ma60: Optional[float]
+    macd_dif: Optional[float]
+    macd_dea: Optional[float]
+    rsi_6: Optional[float]
+    kdj_k: Optional[float]
+    kdj_d: Optional[float]
+    bollinger_upper: Optional[float]
+
+
+@app.get("/api/indicators/{stock_code}")
+def get_technical_indicators(stock_code: str, days: int = 30):
+    """获取股票技术指标"""
+    sql = """
+    SELECT * FROM trade_technical_indicator
+    WHERE stock_code = %s
+    ORDER BY trade_date DESC
+    LIMIT %s
+    """
+    rows = execute_query(sql, (stock_code, days))
+    return rows
+
+
+# ==================== 分析报告 API ====================
+
+class AnalysisReportResponse(BaseModel):
+    """分析报告响应"""
+    id: int
+    stock_code: str
+    report_date: str
+    signal_type: Optional[str]
+    signal_strength: Optional[float]
+    trend_direction: Optional[str]
+    risk_level: Optional[str]
+    recommendation: Optional[str]
+
+
+@app.get("/api/reports/daily")
+def get_daily_report():
+    """获取每日报告"""
+    from src.report_service import ReportService
+
+    service = ReportService()
+    report = service.generate_daily_report()
+
+    return report
+
+
+@app.get("/api/reports/stock/{stock_code}")
+def get_stock_report(stock_code: str):
+    """获取单只股票的分析报告"""
+    from src.report_service import ReportService
+
+    service = ReportService()
+    report = service.generate_stock_report(stock_code)
+
+    return report
+
+
+# ==================== OCR API ====================
+
+from fastapi import UploadFile, File
+import shutil
+
+@app.post("/api/ocr/upload")
+async def upload_ocr_image(file: UploadFile = File(...)):
+    """上传OCR图片并识别"""
+    # 保存文件
+    upload_dir = "uploads/ocr"
+    os.makedirs(upload_dir, exist_ok=True)
+
+    file_path = os.path.join(upload_dir, f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}")
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # 调用OCR服务
+    from src.ocr_service import MockOCRService
+
+    ocr_service = MockOCRService()
+    positions = ocr_service.process_position_image(file_path)
+
+    return {
+        "file_path": file_path,
+        "positions": positions,
+        "message": "OCR识别完成"
+    }
+
+
+# ==================== 定时任务 API ====================
+
+@app.get("/api/scheduler/jobs")
+def list_scheduled_jobs():
+    """获取所有定时任务"""
+    from src.scheduler_service import scheduler
+
+    jobs = scheduler.get_jobs()
+    return [
+        {
+            "id": job.id,
+            "next_run_time": str(job.next_run_time),
+            "trigger": str(job.trigger)
+        }
+        for job in jobs
+    ]
+
+
+@app.post("/api/scheduler/run/{job_id}")
+def run_scheduled_job(job_id: str):
+    """手动执行定时任务"""
+    from src.scheduler_service import scheduler
+
+    try:
+        job = scheduler.scheduler.get_job(job_id)
+        if job:
+            job.func()
+            return {"message": f"任务 {job_id} 执行成功"}
+        else:
+            raise HTTPException(status_code=404, detail="任务不存在")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== 数据同步 API ====================
+
+@app.post("/api/sync/indicators")
+def sync_technical_indicators(stock_code: Optional[str] = None):
+    """同步技术指标"""
+    from src.technical_indicators import TechnicalIndicatorCalculator
+
+    calculator = TechnicalIndicatorCalculator()
+
+    try:
+        if stock_code:
+            calculator.calculate_for_stock(stock_code)
+        else:
+            calculator.calculate_for_all_stocks()
+
+        return {"message": "技术指标同步成功"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ==================== 启动入口 ====================
+
+@app.on_event("startup")
+async def startup_event():
+    """应用启动时初始化"""
+    from src.scheduler_service import init_scheduler, scheduler
+
+    # 初始化并启动定时任务
+    init_scheduler()
+    scheduler.start()
+    print("定时任务调度器已启动")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """应用关闭时清理"""
+    from src.scheduler_service import scheduler
+
+    scheduler.shutdown()
+    print("定时任务调度器已关闭")
+
 
 if __name__ == "__main__":
     import uvicorn

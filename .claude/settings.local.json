@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(/Users/zhaobo/data0/person/quant/.env)",
+      "Bash(cat:*)",
+      "Bash(TUSHARE_TOKEN=7c9f83818cce857ecf6bd686082f39ff57124e27df21f7815afb3327 python:*)",
+      "Bash(/Users/zhaobo/data0/person/quant/.gitignore)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(brew services start:*)",
+      "Bash(mysql:*)",
+      "Bash(npm install:*)",
+      "Bash(chmod:*)",
+      "Bash(PYTHONPATH=/Users/zhaobo/data0/person/quant python:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(curl:*)",
+      "WebSearch",
+      "Bash(git checkout:*)",
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)",
+      "Skill(brainstorming)",
+      "Bash(mkdir:*)",
+      "Skill(writing-plans)",
+      "Skill(subagent-driven-development)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
