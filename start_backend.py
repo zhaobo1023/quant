@@ -23,11 +23,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 # 导入服务
-from src.scheduler_service import SchedulerService
-from src.technical_indicators import TechnicalIndicatorCalculator
-from src.ocr_service import OCRService
-from src.push_service import PushService
-from src.report_service import ReportService
+try:
+    from src.scheduler_service import SchedulerService
+    from src.technical_indicators import TechnicalIndicatorCalculator
+    from src.ocr_service import BaiduOCRService, MockOCRService
+    from src.push_service import FeishuPushService, MockPushService
+    from src.report_service import ReportService
+except ImportError as e:
+    print(f"导入服务失败: {e}")
+    print("继续启动基本服务...")
 
 # 导入API路由
 from web.api.main import app as api_app
@@ -68,20 +72,22 @@ async def lifespan(app: FastAPI):
 
     # 3. 初始化OCR服务
     try:
-        ocr_service = OCRService()
+        ocr_service = BaiduOCRService()
         if ocr_service.is_available():
             logger.info("✓ OCR服务已初始化 (百度API)")
         else:
+            ocr_service = MockOCRService()
             logger.info("✓ OCR服务已初始化 (Mock模式)")
     except Exception as e:
         logger.warning(f"⚠ OCR服务初始化失败: {e}")
 
     # 4. 初始化推送服务
     try:
-        push_service = PushService()
+        push_service = FeishuPushService()
         if push_service.is_configured():
             logger.info("✓ 推送服务已初始化 (飞书Webhook)")
         else:
+            push_service = MockPushService()
             logger.info("✓ 推送服务已初始化 (Mock模式)")
     except Exception as e:
         logger.warning(f"⚠ 推送服务初始化失败: {e}")
