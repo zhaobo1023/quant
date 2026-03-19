@@ -2,14 +2,28 @@
 """
 数据库表结构定义
 
-7张表:
+核心数据表:
 1. trade_stock_daily       - 股票日线行情
 2. trade_stock_financial   - 股票财务指标
-3. trade_stock_news        - 股票新闻事件
-4. trade_report_consensus  - 研报评级/一致预期
-5. trade_macro_indicator   - 宏观经济指标
-6. trade_rate_daily        - 利率汇率日频
-7. trade_calendar_event    - 财经日历事件
+3. trade_stock_industry    - 股票行业分类
+4. trade_stock_daily_basic - 每日指标(市值/PE/PB)
+
+资金流数据表:
+5. trade_stock_moneyflow   - 个股资金流向
+6. trade_north_holding     - 北向资金持股
+7. trade_margin_trade      - 融资融券交易
+
+资讯数据表:
+8. trade_stock_news        - 股票新闻事件
+9. trade_report_consensus  - 研报评级/一致预期
+
+宏观数据表:
+10. trade_macro_indicator  - 宏观经济指标
+11. trade_rate_daily       - 利率汇率日频
+12. trade_calendar_event   - 财经日历事件
+
+持仓管理:
+13. model_trade_position   - 持仓管理
 """
 
 # 表结构定义: (表名, 建表SQL)
@@ -177,6 +191,105 @@ TABLES = [
         INDEX idx_status (status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='持仓管理';
     """, "model_trade_position"),
+
+    # 9. 股票行业分类表
+    ("""
+    CREATE TABLE IF NOT EXISTS trade_stock_industry (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        stock_code VARCHAR(20) NOT NULL COMMENT '股票代码',
+        stock_name VARCHAR(50) COMMENT '股票名称',
+        industry_code VARCHAR(20) COMMENT '行业代码',
+        industry_name VARCHAR(50) COMMENT '行业名称',
+        industry_level VARCHAR(10) DEFAULT 'L1' COMMENT '行业级别 L1/L2/L3',
+        classify_type VARCHAR(20) DEFAULT 'sw' COMMENT '分类标准 sw(申万)/zx(中信)',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_code_type_level (stock_code, classify_type, industry_level),
+        INDEX idx_industry_code (industry_code)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='股票行业分类';
+    """, "trade_stock_industry"),
+
+    # 10. 每日指标表(市值/估值)
+    ("""
+    CREATE TABLE IF NOT EXISTS trade_stock_daily_basic (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        stock_code VARCHAR(20) NOT NULL COMMENT '股票代码',
+        trade_date DATE NOT NULL COMMENT '交易日期',
+        total_mv DECIMAL(18,4) COMMENT '总市值(万元)',
+        circ_mv DECIMAL(18,4) COMMENT '流通市值(万元)',
+        pe_ttm DECIMAL(10,4) COMMENT '市盈率TTM',
+        pb DECIMAL(10,4) COMMENT '市净率',
+        ps_ttm DECIMAL(10,4) COMMENT '市销率TTM',
+        total_share DECIMAL(18,4) COMMENT '总股本(万股)',
+        circ_share DECIMAL(18,4) COMMENT '流通股本(万股)',
+        turnover_rate DECIMAL(8,4) COMMENT '换手率(%)',
+        free_share DECIMAL(18,4) COMMENT '自由流通股本(万股)',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_code_date (stock_code, trade_date),
+        INDEX idx_trade_date (trade_date),
+        INDEX idx_total_mv (total_mv)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='每日指标-市值估值';
+    """, "trade_stock_daily_basic"),
+
+    # 11. 个股资金流向表
+    ("""
+    CREATE TABLE IF NOT EXISTS trade_stock_moneyflow (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        stock_code VARCHAR(20) NOT NULL COMMENT '股票代码',
+        trade_date DATE NOT NULL COMMENT '交易日期',
+        buy_sm_vol DECIMAL(18,2) COMMENT '小单买入量(手)',
+        buy_md_vol DECIMAL(18,2) COMMENT '中单买入量(手)',
+        buy_lg_vol DECIMAL(18,2) COMMENT '大单买入量(手)',
+        buy_elg_vol DECIMAL(18,2) COMMENT '特大单买入量(手)',
+        sell_sm_vol DECIMAL(18,2) COMMENT '小单卖出量(手)',
+        sell_md_vol DECIMAL(18,2) COMMENT '中单卖出量(手)',
+        sell_lg_vol DECIMAL(18,2) COMMENT '大单卖出量(手)',
+        sell_elg_vol DECIMAL(18,2) COMMENT '特大单卖出量(手)',
+        net_mf_vol DECIMAL(18,2) COMMENT '净流入量(手)',
+        net_mf_amount DECIMAL(18,2) COMMENT '净流入额(万元)',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_code_date (stock_code, trade_date),
+        INDEX idx_trade_date (trade_date)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='个股资金流向';
+    """, "trade_stock_moneyflow"),
+
+    # 12. 北向资金持股表
+    ("""
+    CREATE TABLE IF NOT EXISTS trade_north_holding (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        stock_code VARCHAR(20) NOT NULL COMMENT '股票代码',
+        hold_date DATE NOT NULL COMMENT '持股日期',
+        hold_amount DECIMAL(18,4) COMMENT '持股数量(万股)',
+        hold_ratio DECIMAL(10,4) COMMENT '持股占比(%)',
+        hold_change DECIMAL(18,4) COMMENT '持股变化(万股)',
+        hold_value DECIMAL(18,2) COMMENT '持股市值(万元)',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_code_date (stock_code, hold_date),
+        INDEX idx_hold_date (hold_date)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='北向资金持股';
+    """, "trade_north_holding"),
+
+    # 13. 融资融券交易表
+    ("""
+    CREATE TABLE IF NOT EXISTS trade_margin_trade (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        stock_code VARCHAR(20) NOT NULL COMMENT '股票代码',
+        trade_date DATE NOT NULL COMMENT '交易日期',
+        rzye DECIMAL(18,2) COMMENT '融资余额(万元)',
+        rqye DECIMAL(18,2) COMMENT '融券余额(万元)',
+        rzmre DECIMAL(18,2) COMMENT '融资买入额(万元)',
+        rzche DECIMAL(18,2) COMMENT '融资偿还额(万元)',
+        rqmcl DECIMAL(18,4) COMMENT '融券卖出量(万股)',
+        rqchl DECIMAL(18,4) COMMENT '融券偿还量(万股)',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_code_date (stock_code, trade_date),
+        INDEX idx_trade_date (trade_date)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='融资融券交易';
+    """, "trade_margin_trade"),
 ]
 
 
