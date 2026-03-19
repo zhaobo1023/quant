@@ -47,31 +47,30 @@ def ensure_table_exists():
 
 
 def download_trading_calendar():
-    """下载并保存交易日历"""
+    """下载并保存交易日历 - 基于已有日线数据生成"""
     print("=" * 60)
-    print("交易日历采集 (MiniQMT -> MySQL)")
+    print("交易日历采集 (基于已有日线数据生成)")
     print("=" * 60)
 
-    print("\n连接QMT数据服务...")
-    xtdata.connect()
-    print("  连接成功")
+    # 从已有日线数据提取交易日
+    print("\n从 trade_stock_daily 表提取交易日...")
+    rows = execute_query("""
+        SELECT DISTINCT trade_date as trade_date
+        FROM trade_stock_daily
+        ORDER BY trade_date
+    """)
 
-    # 下载节假日数据
-    print("\n下载节假日数据...")
-    xtdata.download_holiday_data()
+    if not rows:
+        print("  错误: trade_stock_daily 表无数据，请先运行日线数据采集")
+        return
 
-    # 获取交易日历
-    print("获取交易日历...")
-    trading_dates = xtdata.get_trading_calendar('SH')  # 上交所
-    trading_dates_sz = xtdata.get_trading_calendar('SZ')  # 深交所
+    trading_dates = [r['trade_date'] for r in rows]
+    print(f"  找到 {len(trading_dates)} 个交易日")
 
-    # 获取节假日
-    print("获取节假日...")
-    holidays = xtdata.get_holidays()
-
-    print(f"  上交所交易日: {len(trading_dates)} 天")
-    print(f"  深交所交易日: {len(trading_dates_sz)} 天")
-    print(f"  节假日: {len(holidays)} 天")
+    # 生成日期范围(包含非交易日)
+    min_date = min(trading_dates)
+    max_date = max(trading_dates)
+    print(f"  日期范围: {min_date} ~ {max_date}")
 
     # 写入数据库
     ensure_table_exists()
@@ -82,41 +81,38 @@ def download_trading_calendar():
     cursor.execute("DELETE FROM trade_calendar")
     conn.commit()
 
-    # 写入交易日数据
     insert_sql = """
         INSERT INTO trade_calendar (trade_date, is_trading, market)
         VALUES (%s, %s, %s)
         ON DUPLICATE KEY UPDATE is_trading=VALUES(is_trading)
     """
 
-    rows = 0
+    # 写入交易日数据
+    rows_written = 0
     for dt in trading_dates:
-        dt_str = str(dt)
-        if len(dt_str) == 8:
-            trade_date = f"{dt_str[:4]}-{dt_str[4:6]}-{dt_str[6:8]}"
-            cursor.execute(insert_sql, (trade_date, 1, 'SH'))
-            rows += 1
+        cursor.execute(insert_sql, (dt, 1, 'A股'))
+        rows_written += 1
 
-    for dt in trading_dates_sz:
-        dt_str = str(dt)
-        if len(dt_str) == 8:
-            trade_date = f"{dt_str[:4]}-{dt_str[4:6]}-{dt_str[6:8]}"
-            cursor.execute(insert_sql, (trade_date, 1, 'SZ'))
-            rows += 1
+    conn.commit()
 
-    # 写入节假日数据
-    for dt in holidays:
-        dt_str = str(dt)
-        if len(dt_str) == 8:
-            holiday_date = f"{dt_str[:4]}-{dt_str[4:6]}-{dt_str[6:8]}"
-            cursor.execute(insert_sql, (holiday_date, 0, 'ALL'))
-            rows += 1
+    # 填充非交易日(周末等)
+    from datetime import date, timedelta
+    current = min_date
+    all_dates = set()
+    while current <= max_date:
+        all_dates.add(current)
+        current += timedelta(days=1)
+
+    non_trading = all_dates - set(trading_dates)
+    for dt in non_trading:
+        cursor.execute(insert_sql, (dt, 0, 'A股'))
+        rows_written += 1
 
     conn.commit()
     cursor.close()
     conn.close()
 
-    print(f"\n写入 {rows} 条记录")
+    print(f"\n写入 {rows_written} 条记录 (交易日: {len(trading_dates)}, 非交易日: {len(non_trading)})")
 
     # 打印概况
     _print_summary()
