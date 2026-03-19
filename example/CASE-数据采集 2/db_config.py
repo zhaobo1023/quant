@@ -9,15 +9,15 @@ import pymysql
 from dotenv import dotenv_values
 
 # 从 .env 读取
-_env_path = Path(__file__).parent.parent / '.env'
+_env_path = Path(__file__).parent.parent.parent / '.env'
 _env = dotenv_values(_env_path)
 
 DB_CONFIG = {
-    'host': _env.get('WUCAI_SQL_HOST', 'localhost'),
-    'user': _env.get('WUCAI_SQL_USERNAME', 'root'),
-    'password': _env.get('WUCAI_SQL_PASSWORD', ''),
-    'database': _env.get('WUCAI_SQL_DB', 'wucai_trade'),
-    'port': int(_env.get('WUCAI_SQL_PORT', '3306')),
+    'host': os.environ.get('WUCAI_SQL_HOST') or _env.get('WUCAI_SQL_HOST', 'localhost'),
+    'user': os.environ.get('WUCAI_SQL_USERNAME') or _env.get('WUCAI_SQL_USERNAME', 'root'),
+    'password': os.environ.get('WUCAI_SQL_PASSWORD') or _env.get('WUCAI_SQL_PASSWORD', ''),
+    'database': os.environ.get('WUCAI_SQL_DB') or _env.get('WUCAI_SQL_DB', 'wucai_trade'),
+    'port': int(os.environ.get('WUCAI_SQL_PORT') or _env.get('WUCAI_SQL_PORT', '3306')),
     'charset': 'utf8mb4'
 }
 

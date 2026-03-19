@@ -40,7 +40,7 @@ if sys.platform == 'win32' and hasattr(sys.stdout, 'reconfigure'):
 # ============================================================
 # 配置
 # ============================================================
-TEST_MODE = True
+TEST_MODE = False
 TEST_STOCK = '600519.SH'
 
 SECTOR = '沪深A股'
