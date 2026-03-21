@@ -69,13 +69,35 @@ def get_stock_list():
     return valid_stocks
 
 
+def get_float_volumes(stock_list):
+    """批量获取股票的流通股本"""
+    float_volumes = {}
+    for stock_code in stock_list:
+        try:
+            detail = xtdata.get_instrument_detail(stock_code)
+            if detail and 'FloatVolume' in detail:
+                float_vol = detail['FloatVolume']
+                if float_vol and float_vol > 0:
+                    float_volumes[stock_code] = float_vol
+        except:
+            pass
+    return float_volumes
+
+
 def download_and_save_data(stock_list, start_date):
     """下载并保存数据"""
+    import pandas as pd
+
     conn = pymysql.connect(**DB_CONFIG)
     cursor = conn.cursor()
 
     total_records = 0
     failed_count = 0
+
+    # 获取所有股票的流通股本（用于计算换手率）
+    logger.info("Getting float volumes...")
+    float_volumes = get_float_volumes(stock_list)
+    logger.info(f"Float volumes obtained: {len(float_volumes)} stocks")
 
     for i in range(0, len(stock_list), BATCH_SIZE):
         batch = stock_list[i:i+BATCH_SIZE]
@@ -101,8 +123,6 @@ def download_and_save_data(stock_list, start_date):
         # 获取并保存数据
         for stock_code in batch:
             try:
-                import pandas as pd
-
                 res = xtdata.get_market_data(
                     stock_list=[stock_code],
                     period='1d',
@@ -126,6 +146,9 @@ def download_and_save_data(stock_list, start_date):
                 dates = close_df.columns.tolist()
                 records = []
 
+                # 获取该股票的流通股本
+                float_vol = float_volumes.get(stock_code)
+
                 for j, date_str in enumerate(dates):
                     record = {
                         'stock_code': stock_code,
@@ -136,6 +159,7 @@ def download_and_save_data(stock_list, start_date):
                         'low_price': None,
                         'volume': None,
                         'amount': None,
+                        'turnover_rate': None,
                     }
 
                     try:
@@ -169,11 +193,13 @@ def download_and_save_data(stock_list, start_date):
                     except:
                         pass
 
+                    volume_val = None
                     try:
                         if volume_df is not None and stock_code in volume_df.index:
                             val = volume_df.loc[stock_code].values[j]
                             if pd.notna(val):
-                                record['volume'] = int(val)
+                                volume_val = int(val)
+                                record['volume'] = volume_val
                     except:
                         pass
 
@@ -185,22 +211,28 @@ def download_and_save_data(stock_list, start_date):
                     except:
                         pass
 
+                    # 计算换手率 = 成交量(手) * 100 / 流通股本 * 100
+                    # QMT的成交量单位是"手"，需要乘以100转换为股数
+                    if volume_val and float_vol and float_vol > 0:
+                        record['turnover_rate'] = round((volume_val * 100 / float_vol) * 100, 4)
+
                     if record['close_price'] is not None:
                         records.append(record)
 
                 if records:
                     sql = '''
                     INSERT INTO trade_stock_daily
-                        (stock_code, trade_date, open_price, high_price, low_price, close_price, volume, amount)
+                        (stock_code, trade_date, open_price, high_price, low_price, close_price, volume, amount, turnover_rate)
                     VALUES
-                        (%(stock_code)s, %(trade_date)s, %(open_price)s, %(high_price)s, %(low_price)s, %(close_price)s, %(volume)s, %(amount)s)
+                        (%(stock_code)s, %(trade_date)s, %(open_price)s, %(high_price)s, %(low_price)s, %(close_price)s, %(volume)s, %(amount)s, %(turnover_rate)s)
                     ON DUPLICATE KEY UPDATE
                         open_price = VALUES(open_price),
                         high_price = VALUES(high_price),
                         low_price = VALUES(low_price),
                         close_price = VALUES(close_price),
                         volume = VALUES(volume),
-                        amount = VALUES(amount)
+                        amount = VALUES(amount),
+                        turnover_rate = VALUES(turnover_rate)
                     '''
                     cursor.executemany(sql, records)
                     total_records += len(records)
