@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多因子选股策略 - 代码实现总结</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.8;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        header p {
+            opacity: 0.8;
+            font-size: 1.1em;
+        }
+        .content {
+            padding: 40px;
+        }
+        h2 {
+            color: #1a1a2e;
+            border-left: 5px solid #667eea;
+            padding-left: 15px;
+            margin: 30px 0 20px;
+            font-size: 1.8em;
+        }
+        h3 {
+            color: #16213e;
+            margin: 25px 0 15px;
+            font-size: 1.3em;
+        }
+        .overview-box {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+        .overview-box h3 {
+            margin-top: 0;
+        }
+        .flow-chart {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .flow-item {
+            flex: 1;
+            min-width: 200px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .flow-item h4 {
+            margin-bottom: 10px;
+        }
+        .flow-item p {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        .script-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            border-left: 5px solid #667eea;
+        }
+        .script-card h3 {
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .script-card .number {
+            background: #667eea;
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        th {
+            background: #1a1a2e;
+            color: white;
+            padding: 15px;
+            text-align: left;
+        }
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        tr:hover {
+            background: #e9ecef;
+        }
+        .code-block {
+            background: #1a1a2e;
+            color: #a8dadc;
+            padding: 20px;
+            border-radius: 10px;
+            overflow-x: auto;
+            font-family: "Fira Code", "Monaco", monospace;
+            font-size: 0.9em;
+            margin: 15px 0;
+        }
+        .highlight {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .factor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .factor-item {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .factor-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border-color: #667eea;
+        }
+        .factor-item h4 {
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+        .factor-item .weight {
+            background: #667eea;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .comparison-table {
+            margin: 20px 0;
+        }
+        .comparison-table th:first-child {
+            width: 150px;
+        }
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin: 2px;
+        }
+        .tag-blue { background: #e3f2fd; color: #1976d2; }
+        .tag-green { background: #e8f5e9; color: #388e3c; }
+        .tag-orange { background: #fff3e0; color: #f57c00; }
+        .tag-purple { background: #f3e5f5; color: #7b1fa2; }
+        .summary-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+        }
+        .summary-box h3 {
+            color: white;
+            margin-top: 0;
+        }
+        .summary-box ul {
+            margin-left: 20px;
+        }
+        .summary-box li {
+            margin: 10px 0;
+        }
+        footer {
+            background: #1a1a2e;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        footer p {
+            opacity: 0.7;
+        }
+        .arch-diagram {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .arch-level {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        .arch-box {
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            padding: 15px 25px;
+            min-width: 150px;
+        }
+        .arch-arrow {
+            font-size: 2em;
+            color: #667eea;
+            margin: 10px 0;
+        }
+        @media (max-width: 768px) {
+            .flow-item {
+                min-width: 100%;
+            }
+            .content {
+                padding: 20px;
+            }
+            header h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>多因子选股策略</h1>
+            <p>CASE-网格与多因子 | 量化交易策略实现总结</p>
+        </header>
+
+        <div class="content">
+            <!-- 概览 -->
+            <h2>📊 策略概览</h2>
+            <div class="overview-box">
+                <p>本模块实现了从<strong>因子评价</strong>到<strong>多因子选股</strong>再到<strong>ML增强</strong>的完整量化选股体系。通过8个渐进式脚本，系统性地展示了如何构建一个专业的多因子选股策略。</p>
+            </div>
+
+            <!-- 架构图 -->
+            <div class="arch-diagram">
+                <h3>策略演进路线</h3>
+                <div class="arch-level">
+                    <div class="arch-box"><strong>因子评价</strong><br><small>4-多因子评价框架</small></div>
+                </div>
+                <div class="arch-arrow">↓</div>
+                <div class="arch-level">
+                    <div class="arch-box"><strong>多因子打分</strong><br><small>5-多因子打分选股</small></div>
+                    <div class="arch-box"><strong>小市值轮动</strong><br><small>6-小市值轮动策略</small></div>
+                </div>
+                <div class="arch-arrow">↓</div>
+                <div class="arch-level">
+                    <div class="arch-box"><strong>融合策略</strong><br><small>7-因子选股+中枢网格</small></div>
+                    <div class="arch-box"><strong>ML增强</strong><br><small>8-ML增强多因子</small></div>
+                </div>
+            </div>
+
+            <!-- 脚本详解 -->
+            <h2>📁 脚本详解</h2>
+
+            <!-- 脚本4 -->
+            <div class="script-card">
+                <h3><span class="number">4</span> 多因子评价框架</h3>
+                <p><strong>核心目标：</strong>科学评价因子有效性，回答"什么因子能预测未来收益"</p>
+
+                <h4>主要功能</h4>
+                <ul>
+                    <li><strong>因子计算：</strong>使用 TA-Lib 计算6个技术因子（动量、波动率、RSI、ADX等）</li>
+                    <li><strong>IC分析：</strong>计算因子值与未来收益的Spearman相关系数</li>
+                    <li><strong>分层回测：</strong>按因子值分5组(Q1-Q5)，验证各组收益差异</li>
+                </ul>
+
+                <h4>核心代码结构</h4>
+                <div class="code-block">
+# 批量加载数据
+all_data = batch_load_daily(start_date, end_date)
+
+# 计算技术因子
+factor_df = calc_technical_factors(all_data)
+
+# IC分析 (因子值 vs 未来20日收益)
+ic_series, icir = calc_ic_series(all_data, factor_name, holding_days=20)
+
+# 分层回测 (5分位组)
+qr = quintile_backtest(all_data, factor_name, num_groups=5)
+                </div>
+
+                <h4>关键指标</h4>
+                <table>
+                    <tr><th>指标</th><th>说明</th><th>判定标准</th></tr>
+                    <tr><td>IC均值</td><td>因子与收益的相关性</td><td>>0.05 为有效因子</td></tr>
+                    <tr><td>ICIR</td><td>IC均值/IC标准差</td><td>>0.5 优秀, >0.3 良好</td></tr>
+                    <tr><td>Q5-Q1价差</td><td>最高组与最低组收益差</td><td>越大越好</td></tr>
+                </table>
+            </div>
+
+            <!-- 脚本5 -->
+            <div class="script-card">
+                <h3><span class="number">5</span> 多因子打分选股</h3>
+                <p><strong>核心目标：</strong>将多个因子组合成选股策略，实现月度调仓</p>
+
+                <h4>选股流程</h4>
+                <div class="flow-chart">
+                    <div class="flow-item">
+                        <h4>1. 计算因子</h4>
+                        <p>8个技术因子<br>TA-Lib实现</p>
+                    </div>
+                    <div class="flow-item">
+                        <h4>2. 横截面排名</h4>
+                        <p>每个因子0~1<br>归一化处理</p>
+                    </div>
+                    <div class="flow-item">
+                        <h4>3. 加权打分</h4>
+                        <p>按权重求和<br>得到综合得分</p>
+                    </div>
+                    <div class="flow-item">
+                        <h4>4. 选Top-N</h4>
+                        <p>等权配置<br>月度调仓</p>
+                    </div>
+                </div>
+
+                <h4>因子配置 (factor_engine.py)</h4>
+                <div class="factor-grid">
+                    <div class="factor-item">
+                        <h4>20日动量</h4>
+                        <p>ROC(20)，反映短期价格趋势</p>
+                        <span class="weight">权重: 20%</span>
+                    </div>
+                    <div class="factor-item">
+                        <h4>60日动量</h4>
+                        <p>ROC(60)，反映中期价格趋势</p>
+                        <span class="weight">权重: 15%</span>
+                    </div>
+                    <div class="factor-item">
+                        <h4>波动率</h4>
+                        <p>ATR(14)/Close，归一化波动率</p>
+                        <span class="weight">权重: 15% (反向)</span>
+                    </div>
+                    <div class="factor-item">
+                        <h4>RSI(14)</h4>
+                        <p>超卖区间更优</p>
+                        <span class="weight">权重: 10% (反向)</span>
+                    </div>
+                    <div class="factor-item">
+                        <h4>ADX(14)</h4>
+                        <p>趋势强度指标</p>
+                        <span class="weight">权重: 10%</span>
+                    </div>
+                    <div class="factor-item">
+                        <h4>换手率</h4>
+                        <p>当日量/20日均量</p>
+                        <span class="weight">权重: 10%</span>
+                    </div>
+                    <div class="factor-item">
+                        <h4>价格位置</h4>
+                        <p>当前价在60日区间位置</p>
+                        <span class="weight">权重: 10% (反向)</span>
+                    </div>
+                    <div class="factor-item">
+                        <h4>MACD信号</h4>
+                        <p>MACD柱状图</p>
+                        <span class="weight">权重: 10%</span>
+                    </div>
+                </div>
+
+                <h4>核心代码</h4>
+                <div class="code-block">
+# 批量计算因子
+factor_df = batch_calc_factors(all_data)
+
+# 多因子打分
+scored = score_stocks(factor_df, factor_config=FACTOR_CONFIG)
+
+# 选出Top-N
+top_codes = scored.head(10).index.tolist()
+
+# 月度调仓回测
+result = monthly_rebalance_backtest(all_data, top_n=10)
+                </div>
+            </div>
+
+            <!-- 脚本6 -->
+            <div class="script-card">
+                <h3><span class="number">6</span> 小市值轮动策略</h3>
+                <p><strong>核心目标：</strong>利用A股"小市值效应"，结合动量+波动率过滤</p>
+
+                <h4>策略对比</h4>
+                <table class="comparison-table">
+                    <tr>
+                        <th>策略</th>
+                        <th>选股逻辑</th>
+                        <th>优点</th>
+                        <th>缺点</th>
+                    </tr>
+                    <tr>
+                        <td><span class="tag tag-blue">纯小市值</span></td>
+                        <td>只按市值排序，选最小的N只</td>
+                        <td>简单直接</td>
+                        <td>容易选到垃圾股</td>
+                    </tr>
+                    <tr>
+                        <td><span class="tag tag-green">增强版</span></td>
+                        <td>小市值 + 动量过滤 + 波动率过滤</td>
+                        <td>排除暴跌股、极端波动股</td>
+                        <td>参数较多</td>
+                    </tr>
+                </table>
+
+                <h4>增强版过滤条件</h4>
+                <div class="code-block">
+# 过滤: 排除暴跌股
+if momentum_20d < -20:
+    continue
+
+# 过滤: 排除极端波动股
+if volatility > 0.05:
+    continue
+
+# 打分公式
+score = (1 - cap_rank) * 0.5  # 小市值权重
+       + min(m20, 30) / 30 * 0.3  # 动量权重
+       + (1 - min(vol, 0.05) / 0.05) * 0.2  # 低波动权重
+                </div>
+            </div>
+
+            <!-- 脚本7 -->
+            <div class="script-card">
+                <h3><span class="number">7</span> 因子选股 + 中枢网格 融合策略</h3>
+                <p><strong>核心目标：</strong>将选股线与网格线融合，选出适合做网格的标的</p>
+
+                <h4>融合思路</h4>
+                <div class="flow-chart">
+                    <div class="flow-item">
+                        <h4>选股线</h4>
+                        <p>多因子打分<br>选出"适合网格"的标的</p>
+                    </div>
+                    <div class="flow-item">
+                        <h4>+</h4>
+                        <p>融合</p>
+                    </div>
+                    <div class="flow-item">
+                        <h4>网格线</h4>
+                        <p>缠论分析<br>在中枢内做网格</p>
+                    </div>
+                </div>
+
+                <h4>网格适配因子配置</h4>
+                <table>
+                    <tr><th>因子</th><th>方向</th><th>权重</th><th>说明</th></tr>
+                    <tr><td>ADX(14)</td><td><span class="tag tag-orange">反向</span></td><td>30%</td><td>ADX低=震荡市=网格天堂</td></tr>
+                    <tr><td>波动率</td><td><span class="tag tag-green">正向</span></td><td>25%</td><td>适度波动有利于网格差价</td></tr>
+                    <tr><td>RSI(14)</td><td><span class="tag tag-purple">中性</span></td><td>15%</td><td>接近50最好，无方向</td></tr>
+                    <tr><td>20日动量</td><td><span class="tag tag-purple">中性</span></td><td>15%</td><td>接近0最好，无趋势</td></tr>
+                    <tr><td>换手率</td><td><span class="tag tag-green">正向</span></td><td>15%</td><td>保证流动性</td></tr>
+                </table>
+            </div>
+
+            <!-- 脚本8 -->
+            <div class="script-card">
+                <h3><span class="number">8</span> ML增强多因子</h3>
+                <p><strong>核心目标：</strong>用LightGBM从数据中学习最优因子组合</p>
+
+                <h4>ML vs 传统打分</h4>
+                <table>
+                    <tr><th>对比项</th><th>传统等权打分</th><th>ML增强</th></tr>
+                    <tr><td>权重确定</td><td>人工设定</td><td>模型学习</td></tr>
+                    <tr><td>因子关系</td><td>线性组合</td><td>非线性组合</td></tr>
+                    <tr><td>交互特征</td><td>不支持</td><td>支持 (动量*波动率)</td></tr>
+                    <tr><td>过拟合风险</td><td>低</td><td>高，需要足够样本</td></tr>
+                </table>
+
+                <h4>特征工程</h4>
+                <div class="code-block">
+FEATURE_NAMES = [
+    'momentum_5d', 'momentum_10d', 'momentum_20d', 'momentum_60d',
+    'volatility', 'rsi_14', 'adx_14',
+    'macd_hist', 'obv_slope', 'vol_ratio', 'price_position',
+    'mom_vol_cross',    # 交互特征: 动量 * 波动率
+    'adx_rsi_cross',    # 交互特征: ADX * (RSI-50)
+]
+                </div>
+
+                <h4>滚动训练流程</h4>
+                <div class="code-block">
+for i in range(train_months, len(dates)):
+    test_date = dates[i]
+    train_dates = dates[i-train_months:i]  # 过去12个月训练
+
+    # 训练模型
+    model.fit(X_train, y_train)
+
+    # 预测并选Top-N
+    predictions = model.predict(X_test)
+    top = test_data.nlargest(top_n, 'pred')
+
+    # 计算组合收益
+    port_return = top['forward_return'].mean()
+                </div>
+            </div>
+
+            <!-- 核心引擎 -->
+            <h2>⚙️ 核心引擎模块</h2>
+
+            <div class="script-card">
+                <h3>factor_engine.py - 因子引擎</h3>
+                <table>
+                    <tr><th>函数</th><th>功能</th><th>输入</th><th>输出</th></tr>
+                    <tr><td><code>calc_all_factors()</code></td><td>计算单只股票的全部因子</td><td>DataFrame</td><td>dict</td></tr>
+                    <tr><td><code>batch_calc_factors()</code></td><td>批量计算所有股票因子</td><td>dict{code:df}</td><td>DataFrame</td></tr>
+                    <tr><td><code>score_stocks()</code></td><td>多因子打分</td><td>factor_df</td><td>scored_df</td></tr>
+                    <tr><td><code>select_top_stocks()</code></td><td>选出Top-N股票</td><td>factor_df, n</td><td>(df, codes)</td></tr>
+                </table>
+            </div>
+
+            <!-- 总结 -->
+            <div class="summary-box">
+                <h3>🎯 关键发现</h3>
+                <ul>
+                    <li><strong>因子评价是基础：</strong>IC分析和分层回测是验证因子有效性的科学方法</li>
+                    <li><strong>多因子组合更稳健：</strong>单因子容易被市场风格切换击败，多因子分散风险</li>
+                    <li><strong>小市值效应在A股长期有效：</strong>但需要动量+波动率过滤排除垃圾股</li>
+                    <li><strong>ML能发现非线性关系：</strong>交互特征(动量*波动率)往往比单因子更有效</li>
+                    <li><strong>滚动训练避免过拟合：</strong>Walk-Forward方式确保不使用未来信息</li>
+                    <li><strong>选股+网格融合：</strong>因子选出"适合网格"的标的，缠论确定网格区间</li>
+                </ul>
+            </div>
+
+            <!-- 文件结构 -->
+            <h2>📂 文件结构</h2>
+            <div class="code-block">
+CASE-网格与多因子/
+├── db_config.py           # 数据库配置
+├── data_loader.py         # 数据加载模块
+├── factor_engine.py       # 因子计算引擎
+├── grid_engine.py         # 网格交易引擎
+├── chanpy_wrapper.py      # 缠论封装
+│
+├── 4-多因子评价框架.py     # 因子有效性检验
+├── 5-多因子打分选股.py     # 多因子打分+月度调仓
+├── 6-小市值轮动策略.py     # 小市值+动量+波动率
+├── 7-因子选股+中枢网格.py  # 选股与网格融合
+└── 8-ML增强多因子.py       # LightGBM机器学习
+            </div>
+
+            <!-- 运行说明 -->
+            <h2>🚀 运行说明</h2>
+            <div class="code-block">
+# 1. 配置数据库连接 (.env)
+WUCAI_SQL_HOST=xxx
+WUCAI_SQL_PASSWORD=xxx
+WUCAI_SQL_DB=trade
+
+# 2. 安装依赖
+pip install pandas numpy talib lightgbm
+
+# 3. 按顺序运行
+python 4-多因子评价框架.py    # 评价因子有效性
+python 5-多因子打分选股.py    # 运行选股策略
+python 6-小市值轮动策略.py    # 小市值策略
+python 7-因子选股+中枢网格.py # 融合策略
+python 8-ML增强多因子.py      # ML增强
+            </div>
+
+        </div>
+
+        <footer>
+            <p>多因子选股策略 | CASE-网格与多因子 | 量化交易课程</p>
+            <p style="margin-top: 10px; font-size: 0.9em;">
+                <span class="tag tag-blue">因子评价</span>
+                <span class="tag tag-green">多因子打分</span>
+                <span class="tag tag-orange">小市值轮动</span>
+                <span class="tag tag-purple">ML增强</span>
+            </p>
+        </footer>
+    </div>
+</body>
+</html>
